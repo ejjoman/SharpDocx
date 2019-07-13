@@ -1,6 +1,10 @@
 ﻿using System.IO;
 using SharpDocx;
 
+#if NET35
+using SharpDocx.Extensions;
+#endif
+
 namespace Inheritance
 {
     internal class Program
@@ -14,11 +18,17 @@ namespace Inheritance
             var documentPath = $"{BasePath}/Documents/Inheritance.docx";
 
 #if DEBUG
-            Ide.Start(viewPath, documentPath, null, typeof(MyDocument), f => ((MyDocument) f).MyProperty = "The code");
+            Ide.Start<MyDocument, object>(viewPath, documentPath, null, f => f.MyProperty = "The code");
 #else
-            var myDocument = DocumentFactory.Create<MyDocument>(viewPath);
-            myDocument.MyProperty = "The Code";
-            myDocument.Generate(documentPath);
+
+            File.Copy(viewPath, documentPath, true);
+
+            using (var targetStream = File.Open(documentPath, FileMode.Create))
+            {
+                var myDocument = DocumentFactory.Create<MyDocument, object>(targetStream);
+                myDocument.MyProperty = "The Code";
+                myDocument.Generate();
+            }
 #endif
         }
     }

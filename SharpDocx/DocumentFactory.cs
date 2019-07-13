@@ -13,46 +13,42 @@ namespace SharpDocx
         private static readonly Hashtable Assemblies = new Hashtable();
         private static readonly object AssembliesLock = new object();
 
-        public static TBaseClass Create<TBaseClass>(string viewPath, object model = null, bool forceCompile = false)
-            where TBaseClass : DocumentBase
+        public static DocumentBase<TModel> Create<TModel>(Stream documentStream)
         {
-            return (TBaseClass) Create(viewPath, model, typeof(TBaseClass), forceCompile);
+            return Create<TModel>(documentStream, false);
         }
 
-        public static DocumentBase Create(
-            string viewPath,
-            object model = null,
-            Type baseClassType = null,
-            bool forceCompile = false)
+        public static DocumentBase<TModel> Create<TModel>(Stream documentStream, bool forceCompile)
         {
-            viewPath = Path.GetFullPath(viewPath);
+            return Create<DocumentBase<TModel>, TModel>(documentStream, forceCompile);
+        }
 
-            if (baseClassType == null)
-            {
-                baseClassType = typeof(DocumentBase);
-            }
+        public static TBaseClass Create<TBaseClass, TModel>(Stream documentStream) where TBaseClass : DocumentBase<TModel>
+        {
+            return Create<TBaseClass, TModel>(documentStream, false);
+        }
 
-            var baseClassName = baseClassType.Name;
-            var modelTypeName = model?.GetType().Name ?? string.Empty;
-            DocumentAssembly da;
+        public static TBaseClass Create<TBaseClass, TModel>(Stream documentStream, bool forceCompile) where TBaseClass : DocumentBase<TModel>
+        {
+            var baseClassName = typeof(TBaseClass).Name;
+            var modelTypeName = typeof(TModel).Name;
 
+            DocumentAssembly<TBaseClass, TModel> da;
             lock (AssembliesLock)
             {
-                da = (DocumentAssembly) Assemblies[viewPath + baseClassName + modelTypeName];
+                var assemblyKey = baseClassName + modelTypeName;
+
+                da = (DocumentAssembly<TBaseClass, TModel>)Assemblies[assemblyKey];
 
                 if (da == null || forceCompile)
                 {
-                    da = new DocumentAssembly(
-                        viewPath,
-                        baseClassType,
-                        model?.GetType());
-
-                    Assemblies[viewPath + baseClassName + modelTypeName] = da;
+                    da = new DocumentAssembly<TBaseClass, TModel>(documentStream);
+                    Assemblies[assemblyKey] = da;
                 }
             }
 
-            var document = (DocumentBase) da.Instance();
-            document.Init(viewPath, model);
+            var document = (TBaseClass)da.Instance();
+            document.Init(documentStream);
             return document;
         }
     }

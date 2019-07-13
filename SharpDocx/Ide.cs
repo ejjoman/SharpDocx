@@ -2,16 +2,20 @@
 using System.Diagnostics;
 using System.IO;
 
+#if NET35
+using SharpDocx.Extensions;
+#endif
+
 namespace SharpDocx
 {
     public static class Ide
     {
-        public static void Start(
-            string viewPath,
-            string documentPath,
-            object model = null,
-            Type baseClassType = null,
-            Action<DocumentBase> initializeDocument = null)
+        public static void Start<TModel>(string viewPath, string documentPath, TModel model = default, Action<DocumentBase<TModel>> initializeDocument = null)
+        {
+            Start<DocumentBase<TModel>, TModel>(viewPath, documentPath, model, initializeDocument);
+        }
+
+        public static void Start<TBaseClass, TModel>(string viewPath, string documentPath, TModel model = default, Action<TBaseClass> initializeDocument = null) where TBaseClass : DocumentBase<TModel>
         {
             Console.WriteLine("Initializing SharpDocx IDE...");
 
@@ -25,13 +29,23 @@ namespace SharpDocx
                 {
                     Console.WriteLine();
                     Console.WriteLine($"Compiling '{viewPath}'.");
-                    var document = DocumentFactory.Create(viewPath, model, baseClassType, true);
-                    initializeDocument?.Invoke(document);
-                    document.Generate(documentPath);
+
+                    using (var ms = new MemoryStream(File.ReadAllBytes(viewPath)))
+                    {
+                        var document = DocumentFactory.Create<TBaseClass, TModel>(ms, true);
+                        initializeDocument?.Invoke(document);
+                        document.Generate(model);
+
+                        ms.Seek(0, SeekOrigin.Begin);
+
+                        using (var fs = File.Create(documentPath))
+                            ms.CopyTo(fs);
+                    }
+
                     Console.WriteLine($"Succesfully generated '{documentPath}'.");
 
                     try
-                    {              
+                    {
                         // Show the generated document.
                         Process.Start(documentPath);
                     }

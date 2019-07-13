@@ -18,12 +18,12 @@ namespace Model
 
         private static void Main()
         {
-#if DEBUG
+#if !DEBUG
             var viewPath = $"{BasePath}/Views/Model.cs.docx";
             var documentPath = $"{BasePath}/Documents/Model.docx";            
             var model = CreateViewModel();
 
-            Ide.Start(viewPath, documentPath, model);
+            Ide.Start<MyViewModel>(viewPath, documentPath, model);
 #else
             var startTime = DateTime.Now;
             var documentCount = 100;
@@ -43,15 +43,27 @@ namespace Model
 #endif
         }
 
+#if DEBUG
         private static void GenerateDocument(int i)
         {
             var viewPath = $"{BasePath}\\Views\\Model.cs.docx";
             var documentPath = $"{BasePath}\\Documents\\Model {i}.docx";
             var model = CreateViewModel();
+            model.Title += i.ToString();
 
-            var document = DocumentFactory.Create(viewPath, model);
-            document.Generate(documentPath);
+            File.Copy(viewPath, documentPath, true);
+
+            using (var documentStream = File.Open(documentPath, FileMode.Open))
+            {
+                documentStream.Seek(0, SeekOrigin.Begin);
+
+                var document = DocumentFactory.Create<MyViewModel>(documentStream);
+                document.Generate(model);
+
+                documentStream.Close();
+            }
         }
+#endif
 
         private static MyViewModel CreateViewModel()
         {

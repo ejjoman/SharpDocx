@@ -5,7 +5,7 @@ using SharpDocx;
 
 namespace Inheritance
 {
-    public abstract class MyDocument : DocumentBase
+    public abstract class MyDocument : DocumentBase<object>
     {
         public string MyProperty { get; set; }
 

@@ -15,11 +15,17 @@ namespace Tutorial
             var imageDirectory = $"{BasePath}/Images";
 
 #if DEBUG
-            Ide.Start(viewPath, documentPath, null, null, f => f.ImageDirectory = imageDirectory);
+            Ide.Start<DocumentBase<object>, object>(viewPath, documentPath, null, f => f.ImageDirectory = imageDirectory);
 #else
-            DocumentBase document = DocumentFactory.Create(viewPath);
-            document.ImageDirectory = imageDirectory;
-            document.Generate(documentPath);
+
+            File.Copy(viewPath, documentPath, true);
+
+            using (var targetStream = File.Open(documentPath, FileMode.Create))
+            {
+                var document = DocumentFactory.Create<object>(targetStream);
+                document.ImageDirectory = imageDirectory;
+                document.Generate();
+            }
 #endif
         }
     }

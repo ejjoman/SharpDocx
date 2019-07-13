@@ -31,7 +31,7 @@ using SharpDocx.CodeBlocks;
 
 namespace SharpDocx
 {
-    internal class DocumentCompiler
+    internal class DocumentCompiler<TBaseClass, TModel> where TBaseClass : DocumentBase<TModel>
     {
         public const string Namespace = "SharpDocx";
 
@@ -53,61 +53,31 @@ namespace {Namespace}
 {InvokeDocumentCodeBody}
         }
 
-        public override void SetModel(object model)
+        public override void SetModel({ModelTypeName} model)
         {
-            if (model == null)
-            {
-                Model = null;
-                return;
-            }
-
-            Model = model as {ModelTypeName};
-
-            if (Model == null)
-            {
-                throw new ArgumentException(""Model is not of type {ModelTypeName}"", ""model"");
-            }
+            Model = model;
         }
     }
 }";
 
-        internal static Assembly Compile(
-            string viewPath, 
-            string className, 
-            string baseClassName, 
-            Type modelType,
-            List<string> usingDirectives, 
-            List<string> referencedAssemblies)
+        internal static Assembly Compile(Stream documentStream, string className, List<string> usingDirectives, List<string> referencedAssemblies)
         {
             List<CodeBlock> codeBlocks;
 
-            // Copy the template to a temporary file, so it can be opened even when the template is open in Word.
-            // This makes testing templates a lot easier.
-            var tempFilePath = $"{Path.GetTempPath()}{Guid.NewGuid():N}.cs.docx";
-            File.Copy(viewPath, tempFilePath, true);
-
-            try
+            using (var package = WordprocessingDocument.Open(documentStream, false))
             {
-                using (var package = WordprocessingDocument.Open(tempFilePath, false))
-                {
-                    var codeBlockBuilder = new CodeBlockBuilder(package);
-                    codeBlocks = codeBlockBuilder.CodeBlocks;
-                }
-            }
-            finally
-            {
-                File.Delete(tempFilePath);
+                var codeBlockBuilder = new CodeBlockBuilder(package);
+                codeBlocks = codeBlockBuilder.CodeBlocks;
             }
 
             var invokeDocumentCodeBody = new StringBuilder();
-            Stack<TextBlock> currentTextBlockStack = new Stack<TextBlock>();
+            var currentTextBlockStack = new Stack<TextBlock>();
 
             for (var i = 0; i < codeBlocks.Count; ++i)
             {
                 var cb = codeBlocks[i];
 
-                var tb = cb as TextBlock;
-                if (tb != null)
+                if (cb is TextBlock tb)
                 {
                     currentTextBlockStack.Push(tb);
                     invokeDocumentCodeBody.Append($"            CurrentTextBlockStack.Push(CurrentTextBlock);{Environment.NewLine}");
@@ -122,9 +92,8 @@ namespace {Namespace}
                         invokeDocumentCodeBody.Append($"            CurrentCodeBlock = CodeBlocks[{i}];{Environment.NewLine}");
                         invokeDocumentCodeBody.Append($"            Write({cb.Code.Substring(1)});{Environment.NewLine}");
                     }
-                    else if (cb is Directive)
+                    else if (cb is Directive directive)
                     {
-                        var directive = (Directive) cb;
                         if (directive.Name.Equals("import"))
                         {
                             AddUsingDirective(directive, usingDirectives);
@@ -137,10 +106,10 @@ namespace {Namespace}
                     else
                     {
                         if (currentTextBlockStack.Count > 0 && cb == currentTextBlockStack.Peek().EndingCodeBlock)
-                    {
+                        {
                             // Automatically insert AppendTextBlock before closing text block brace.
                             invokeDocumentCodeBody.Append($"            AppendTextBlock();{Environment.NewLine}");
-                    }
+                        }
                         invokeDocumentCodeBody.Append($"            CurrentCodeBlock = CodeBlocks[{i}];{Environment.NewLine}");
                         invokeDocumentCodeBody.Append($"            {cb.Code.TrimStart()}{Environment.NewLine}");
                     }
@@ -153,16 +122,15 @@ namespace {Namespace}
                 }
             }
 
-            var modelTypeName = modelType != null ? FormatType(modelType) : "string";
-
             var script = new StringBuilder();
             script.Append(documentClassTemplate);
             script.Replace("{UsingDirectives}", FormatUsingDirectives(usingDirectives));
             script.Replace("{Namespace}", Namespace);
             script.Replace("{ClassName}", className);
-            script.Replace("{BaseClassName}", baseClassName);
-            script.Replace("{ModelTypeName}", modelTypeName);
+            script.Replace("{BaseClassName}", FormatType(typeof(TBaseClass)));
+            script.Replace("{ModelTypeName}", FormatType(typeof(TModel)));
             script.Replace("{InvokeDocumentCodeBody}", invokeDocumentCodeBody.ToString());
+
             return Compile(script.ToString(), referencedAssemblies);
         }
 
@@ -189,7 +157,7 @@ namespace {Namespace}
             if (!assembly.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) &&
                 !assembly.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
             {
-                assembly = assembly + ".dll";
+                assembly += ".dll";
             }
 
             referencedAssemblies.Add(assembly);
@@ -217,7 +185,7 @@ namespace {Namespace}
                 CompilerOptions = "/target:library",
                 GenerateExecutable = false,
                 GenerateInMemory = true,
-                IncludeDebugInformation = false
+                IncludeDebugInformation = false,
             };
 
 #if DEBUG_DOCUMENT_CODE 
@@ -291,7 +259,7 @@ namespace {Namespace}
                 MetadataReference.CreateFromFile(Path.Combine(assemblyDir, "netstandard.dll")),
                 MetadataReference.CreateFromFile(Assembly.GetExecutingAssembly().Location),
                 MetadataReference.CreateFromFile(typeof(WordprocessingDocument).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(DocumentBase).Assembly.Location)
+                MetadataReference.CreateFromFile(typeof(DocumentBase<TModel>).Assembly.Location)
             };
 
 #if AUTO_REFERENCE_SDK
