@@ -4,21 +4,25 @@
     <TargetFrameworks>net45;net35;netstandard2.0</TargetFrameworks>
     <RootNamespace>SharpDocx</RootNamespace>
     <Version>2.0.0.0</Version>
-    <Authors>egonl</Authors>
+    <Authors>ejjoman, egonl</Authors>
     <Product>SharpDocx</Product>
-    <PackageId>MyApp</PackageId>
+    <PackageId>SharpDocx.Fork</PackageId>
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
     <NeutralLanguage>en</NeutralLanguage>
-    <Description>C# based template engine for generating Word documents</Description>
-    <Copyright>Copyright 2017-2019 egonl</Copyright>
+    <Description>This is a fork of the SharpDocx - a C# based template engine for generating Word documents.</Description>
+    <Copyright>Copyright 2019 ejjoman, Copyright 2017-2019 egonl</Copyright>
     <PackageLicenseUrl>https://github.com/egonl/SharpDocx/blob/master/LICENSE</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/egonl/SharpDocx</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/ejjoman/SharpDocx</PackageProjectUrl>
     <!-- <PackageIconUrl>Icon URL</PackageIconUrl> -->
     <!-- <RepositoryUrl>Repo URL</RepositoryUrl> -->
     <!-- <RepositoryType>Repo type</RepositoryType> -->
     <!-- <PackageTags>Tags</PackageTags> -->
-    <PackageReleaseNotes>Release</PackageReleaseNotes>
+    <PackageReleaseNotes>1. Based on egonl's SharpDocx
+2. Uses code base of latest v1.2 development
+3. Switched from file-based API to stream based API</PackageReleaseNotes>
+    <Company></Company>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
