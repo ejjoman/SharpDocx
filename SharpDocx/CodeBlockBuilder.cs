@@ -69,7 +69,7 @@ namespace SharpDocx
                 cb.StartText = map[startTagIndex].Element as Text;
                 cb.EndText = map[endTagIndex + 1].Element as Text;
                 CodeBlocks.Add(cb);
-                mapParts.Add(cb, new MapPart { StartIndex = startTagIndex, EndIndex = endTagIndex + 1});
+                mapParts.Add(cb, new MapPart { StartIndex = startTagIndex, EndIndex = endTagIndex + 1 });
                 startTagIndex = map.Text.IndexOf("<%", endTagIndex + 2);
             }
 
@@ -84,73 +84,55 @@ namespace SharpDocx
             for (var i = firstCodeBlockIndex; i < CodeBlocks.Count; ++i)
             {
                 // Find out where text block ends.
-                var tb = CodeBlocks[i] as TextBlock;
-                if (tb != null)
+                if (!(CodeBlocks[i] is TextBlock tb))
+                    continue;
+
+                var bracketLevel = tb.Code.GetCurlyBracketLevelIncrement();
+
+                for (var j = i + 1; j < CodeBlocks.Count; ++j)
                 {
-                    var bracketLevel = tb.Code.GetCurlyBracketLevelIncrement();
+                    bracketLevel += CodeBlocks[j].Code.GetCurlyBracketLevelIncrement();
 
-                    for (var j = i + 1; j < CodeBlocks.Count; ++j)
+                    if (bracketLevel <= 0)
                     {
-                        bracketLevel += CodeBlocks[j].Code.GetCurlyBracketLevelIncrement();
-
-                        if (bracketLevel <= 0)
-                        {
-                            tb.EndingCodeBlock = CodeBlocks[j];
-                            break;
-                        }
+                        tb.EndingCodeBlock = CodeBlocks[j];
+                        break;
                     }
+                }
 
-                    if (tb.EndingCodeBlock == null)
-                    {
-                        throw new Exception("TextBlock is not terminated with '<% } %>'.");
-                    }
+                if (tb.EndingCodeBlock == null)
+                {
+                    throw new Exception("TextBlock is not terminated with '<% } %>'.");
                 }
             }
 
             for (var i = CodeBlocks.Count - 1; i >= firstCodeBlockIndex; --i)
-            {               
+            {
                 CodeBlocks[i].Initialize();
             }
         }
 
         private static CodeBlock GetCodeBlock(string code)
         {
-            CodeBlock cb;
-
             code = code.RemoveRedundantWhitespace();
 
             if (code.StartsWith("@"))
+                return new Directive(code.Substring(1));
+
+            if (code.Contains("AppendParagraph")) // TODO: match whole words only. 
+                return new ParagraphAppender(code);
+
+            if (code.Contains("AppendRow")) // TODO: match whole words only.
+                return new RowAppender(code);
+
+            if (code.GetCurlyBracketLevelIncrement() > 0 && code.Contains("{@"))
             {
-                cb = new Directive(code.Substring(1));
-            }
-            else if (code.Contains("AppendParagraph"))
-            {
-                // TODO: match whole words only. 
-                cb = new ParagraphAppender(code);
-            }
-            else if (code.Contains("AppendRow"))
-            {
-                // TODO: match whole words only. 
-                cb = new RowAppender(code);
-            }
-            else if (code.GetCurlyBracketLevelIncrement() > 0)
-            {
-                if (code.Contains("{!"))
-                {
-                    code = code.Replace("{!", "{");
-                    cb = new CodeBlock(code);
-                }
-                else
-                {
-                    cb = new TextBlock(code);                                    
-                }
-            }
-            else
-            {
-                cb = new CodeBlock(code);
+                code = code.Replace("{@", "{");
+                return new TextBlock(code);
             }
 
-            return cb;
+            code = code.Replace("{!", "{");
+            return new CodeBlock(code);
         }
     }
 }
