@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.RegularExpressions;
 
 namespace SharpDocx.Extensions
 {
@@ -6,21 +7,7 @@ namespace SharpDocx.Extensions
     {
         public static string RemoveRedundantWhitespace(this string s)
         {
-            var sb = new StringBuilder();
-            var previousCharIsWhitespace = false;
-
-            foreach (var c in s)
-            {
-                if (char.IsWhiteSpace(c) && previousCharIsWhitespace)
-                {
-                    continue;
-                }
-
-                previousCharIsWhitespace = char.IsWhiteSpace(c);
-                sb.Append(c);
-            }
-
-            return sb.ToString();
+            return Regex.Replace(s, @"\s+", " ");
         }
 
         public static int GetCurlyBracketLevelIncrement(this string s)
